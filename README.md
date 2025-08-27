@@ -54,7 +54,7 @@ Follow these instructions to get the API server up and running on your local mac
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/felixszeto/NiceAPI.git
     cd api_server
     ```
 
