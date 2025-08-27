@@ -54,7 +54,7 @@
 
 1.  **克隆儲存庫：**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/felixszeto/NiceAPI.git
     cd api_server
     ```
 
