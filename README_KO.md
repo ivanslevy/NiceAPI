@@ -54,7 +54,7 @@
 
 1.  **저장소 복제:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/felixszeto/NiceAPI.git
     cd api_server
     ```
 
