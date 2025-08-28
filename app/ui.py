@@ -55,6 +55,10 @@ def create_ui():
             info='#3B82F6',
             warning='#F59E0B'
         )
+        def set_language(lang: str):
+            app.storage.user['lang'] = lang
+            ui.navigate.reload()
+
         if app.storage.user.get('authenticated', False):
             # This is the main content of the application.
             # It's only shown if the user is authenticated.
@@ -76,10 +80,6 @@ def create_ui():
                     
                     def logout():
                         app.storage.user['authenticated'] = False
-                        ui.navigate.reload()
-
-                    def set_language(lang: str):
-                        app.storage.user['lang'] = lang
                         ui.navigate.reload()
 
                     with ui.row().classes('w-full items-center no-wrap'):
@@ -1175,7 +1175,15 @@ def create_ui():
 
             with ui.element('div').classes('flex w-screen h-screen overflow-y-hidden relative'):
                 # Left Panel (Login Form) - 40% width
-                with ui.element('div').classes('w-full lg:w-[40%] h-full bg-[#111827] flex flex-col justify-center items-center p-8'):
+                with ui.element('div').classes('w-full lg:w-[40%] h-full bg-[#111827] flex flex-col justify-center items-center p-8 relative'):
+                    with ui.element('div').classes('absolute top-4 right-4 z-10'):
+                        with ui.button(icon='language').props('flat text-color="white"'):
+                            with ui.menu():
+                                ui.menu_item('English', on_click=lambda: set_language('en'))
+                                ui.menu_item('中文(简体)', on_click=lambda: set_language('zh-CN'))
+                                ui.menu_item('中文(繁體)', on_click=lambda: set_language('zh-TW'))
+                                ui.menu_item('한국어', on_click=lambda: set_language('ko'))
+                                ui.menu_item('日本語', on_click=lambda: set_language('ja'))
                     with ui.card().classes('w-full max-w-md p-8 rounded-lg shadow-xl bg-transparent text-white'):
                         # Brand Logo and Title
                         with ui.element('div').classes('flex flex-col items-center text-center mb-8 w-full brand-content'):
