@@ -29,6 +29,8 @@ from app.api import router as api_router
 app.include_router(api_router)
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
+app.mount("/css", StaticFiles(directory="css"), name="css")
+app.mount("/js", StaticFiles(directory="js"), name="js")
 
 # The @ui.page decorator is now used in ui.py, so we don't call create_ui() directly.
 @app.on_event("startup")

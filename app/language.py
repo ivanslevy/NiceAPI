@@ -140,6 +140,16 @@ i18n = {
     "settings_saved": {"en": "Settings saved successfully.", "zh": "設定已成功儲存。", "ko": "설정이 성공적으로 저장되었습니다.", "ja": "設定が正常に保存されました。"},
     "response_body": {"en": "Response Body", "zh": "回應內文", "ko": "응답 본문", "ja": "応答本文"},
     "view": {"en": "View", "zh": "查看", "ko": "보기", "ja": "表示"},
+    "dashboard_refreshed": {"en": "Dashboard refreshed!", "zh": "儀表板已刷新！", "ko": "대시보드가 새로 고쳐졌습니다!", "ja": "ダッシュボードが更新されました！"},
+    "groups_view_refreshed": {"en": "Groups view refreshed!", "zh": "群組視圖已刷新！", "ko": "그룹 보기가 새로 고쳐졌습니다!", "ja": "グループビューが更新されました！"},
+    "logs_refreshed": {"en": "Logs refreshed!", "zh": "日誌已刷新！", "ko": "로그가 새로 고쳐졌습니다!", "ja": "ログが更新されました！"},
+    "group_list_refreshed": {"en": "Group list refreshed", "zh": "群組列表已刷新", "ko": "그룹 목록이 새로 고쳐졌습니다", "ja": "グループリストが更新されました"},
+    "providers_refreshed": {"en": "Providers refreshed!", "zh": "供應商已刷新！", "ko": "공급자가 새로 고쳐졌습니다!", "ja": "プロバイダーが更新されました！"},
+    "api_keys_refreshed": {"en": "API keys refreshed!", "zh": "API 金鑰已刷新！", "ko": "API 키가 새로 고쳐졌습니다!", "ja": "APIキーが更新されました！"},
+    "keywords_refreshed": {"en": "Keywords refreshed!", "zh": "關鍵字已刷新！", "ko": "키워드가 새로 고쳐졌습니다!", "ja": "キーワードが更新されました！"},
+    "refresh_providers": {"en": "Refresh Providers", "zh": "重新整理供應商", "ko": "공급자 새로고침", "ja": "プロバイダーを更新"},
+    "refresh_api_keys": {"en": "Refresh API Keys", "zh": "重新整理 API 金鑰", "ko": "API 키 새로고침", "ja": "APIキーを更新"},
+    "refresh_keywords": {"en": "Refresh Keywords", "zh": "重新整理關鍵字", "ko": "키워드 새로고침", "ja": "キーワードを更新"},
 }
 
 def get_text(key: str) -> str:

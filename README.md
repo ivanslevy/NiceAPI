@@ -41,7 +41,24 @@ The application includes a modern, feature-rich admin dashboard built with [Nice
 *   **Detailed Call Logs**: Inspect detailed logs for every API request, including HTTP status, response time, token usage, and cost.
 *   **Failure Keywords**: Define keywords that trigger an automatic retry if found in a provider's response.
 
-## 🚀 Getting Started
+## 🖼️ Features Gallery
+
+| Dashboard | Providers | Groups |
+| :---: | :---: | :---: |
+| ![Dashboard](example/dashboard_en.png) | ![Providers](example/providers_en.png) | ![Groups](example/groups_en.png) |
+| Monitor real-time API usage, success rates, and performance metrics at a glance. | Manage all your AI provider endpoints, including credentials, costs, and a powerful model importer. | Group multiple providers together to create a virtual endpoint with priority-based failover. |
+
+| Call Logs | API Keys | Failure Keywords |
+| :---: | :---: | :---: |
+| ![Call Logs](example/call_logs_en.png) | ![API Keys](example/api_keys_en.png) | ![Failure Keywords](example/fail_keywords_en.png) |
+| Inspect detailed logs for every API call. Click on a log to view the full response content, along with cost details. | Generate and assign API keys to specific groups for granular access control. | Define keywords that trigger automatic failover if found in a provider's response. |
+
+| Settings |
+| :---: |
+| ![Settings](example/settings_en.png) |
+| Configure global settings, such as the UI language and failover retry logic. |
+
+##  Getting Started
 
 Follow these instructions to get the API server up and running on your local machine.
 

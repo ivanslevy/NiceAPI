@@ -5,6 +5,7 @@ from fastapi import Depends
 import requests
 import asyncio
 import os
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from .database import SessionLocal, get_db
 from . import crud, models, schemas
@@ -16,10 +17,7 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "password")
 
 def create_ui():
-    # This dictionary holds the authentication state.
-    # It's stored in the user's session.
-    # See: https://nicegui.io/documentation/storage
-    
+
     @ui.page('/')
     def main_page(db: Session = Depends(get_db)):
         ui.add_head_html('''
@@ -28,8 +26,25 @@ def create_ui():
             .custom-scrollbar::-webkit-scrollbar-thumb { background: white; border-radius: 4px; }
             .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
             .custom-scrollbar { scrollbar-width: thin; scrollbar-color: white transparent; }
+            .q-dialog__backdrop {
+                background: rgba(0, 0, 0, 0.8) !important;
+            }
             </style>
         ''')
+        @asynccontextmanager
+        async def loading_animation():
+            with ui.dialog() as dialog, ui.card().classes('bg-transparent shadow-none'):
+                ui.spinner('puff', color='white', size='xl')
+            
+            dialog.open()
+            dialog.props('persistent')
+            try:
+                await asyncio.sleep(0.05) # time for dialog to show
+                yield
+                await asyncio.sleep(0.3) # user-requested delay
+            finally:
+                dialog.close()
+
         # If the user is not authenticated, redirect to the login page.
         ui.colors(
             primary='#2F6BFF',
@@ -336,15 +351,30 @@ def create_ui():
                                         else:
                                             ui.label(get_text('no_cost_data')).classes('flex-center')
 
-                    def refresh_dashboard():
-                        dashboard_container.clear()
-                        build_dashboard(dashboard_container)
+                    async def refresh_dashboard():
+                        async with loading_animation():
+                            dashboard_container.clear()
+                            build_dashboard(dashboard_container)
+                        ui.notify(get_text('dashboard_refreshed'), color='positive')
 
-                    ui.button(get_text('refresh_data'), on_click=refresh_dashboard, color='primary').classes('mb-4')
+                    with ui.row().classes('w-full items-center mb-4'):
+                        ui.label(get_text('dashboard')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_data'), on_click=refresh_dashboard, icon='refresh', color='primary').props('flat')
                     dashboard_container = ui.element('div').classes('w-full')
                     build_dashboard(dashboard_container)
 
                 with ui.tab_panel(providers_tab):
+                    async def refresh_providers_table_async():
+                        async with loading_animation():
+                            table.update_rows(get_all_providers_as_dict())
+                        ui.notify(get_text('providers_refreshed'), color='positive')
+
+                    with ui.row().classes('w-full items-center mb-4'):
+                        ui.label(get_text('providers')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_providers'), on_click=refresh_providers_table_async, icon='refresh', color='primary').props('flat')
+
                     # Add Provider Dialog
                     with ui.dialog() as add_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
                         ui.label(get_text('add_new_provider')).classes('text-h6')
@@ -389,7 +419,7 @@ def create_ui():
                     with ui.dialog() as import_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
                         ui.label(get_text('import_models_from_url')).classes('text-h6')
                         with ui.column().classes('w-full'):
-                            base_url_input = ui.input(get_text('base_url'), value='https://xxxx/v1').props('filled').classes('w-full')
+                            base_url_input = ui.input(get_text('base_url'), value='https://xxxx').props('filled').classes('w-full')
                             api_key_input = ui.input(get_text('api_key'), password=True).props('filled').classes('w-full')
                             alias_input = ui.input(get_text('alias_optional'), placeholder='e.g., ollama').props('filled').classes('w-full')
                             default_type_select = ui.select(['per_token', 'per_call'], value='per_token', label=get_text('default_type')).props('filled').classes('w-full')
@@ -586,159 +616,154 @@ def create_ui():
                     table.on('delete', open_delete_dialog)
 
                 with ui.tab_panel(groups_tab) as panel:
-                    panel.on('show', lambda: refresh_groups_view())
-                    ui.label(get_text('provider_groups')).classes('text-h6')
-                    ui.label(get_text('groups_description'))
 
                     def get_groups_with_providers():
-                        db.expire_all() # Force refresh from DB
+                        db.expire_all()
                         groups = crud.get_groups(db)
                         providers = crud.get_providers(db)
-                        
                         group_data = []
                         for group in groups:
-                            # Query the association table directly to get priorities
                             associations = db.query(models.provider_group_association).filter_by(group_id=group.id).all()
                             group_providers = {assoc.provider_id: {"priority": assoc.priority} for assoc in associations}
                             group_data.append({'id': group.id, 'name': group.name, 'providers': group_providers})
-                        
                         return group_data, providers
 
-                    def refresh_groups_view():
-                        groups_container.clear()
-                        with groups_container:
-                            build_groups_view()
-
                     def build_groups_view():
+                        groups_container.clear()
                         group_data, providers = get_groups_with_providers()
 
-                        def get_priority_style(p_value):
-                            if not isinstance(p_value, (int, float)):
-                                p_value = 1
-                            p_value = max(1, min(10, p_value))
-                            # Indicator width: 1 is 100%, 10 is 10%
-                            indicator_width = (11 - p_value) * 10
-                            return f'width: {indicator_width}%;'
-                        
-                        with ui.dialog() as add_group_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
-                            ui.label(get_text('create_new_group')).classes('text-h6')
-                            group_name_input = ui.input(get_text('group_name')).props('filled').classes('w-full')
-                            
-                            def handle_add_group():
-                                if not group_name_input.value:
-                                    ui.notify(get_text('group_name_empty_error'), color='negative')
-                                    return
-                                if crud.get_group_by_name(db, group_name_input.value):
-                                    ui.notify(get_text('group_exists_error').format(name=group_name_input.value), color='negative')
-                                    return
-                                
-                                crud.create_group(db, schemas.GroupCreate(name=group_name_input.value))
-                                ui.notify(get_text('group_created').format(name=group_name_input.value), color='positive')
-                                refresh_groups_view()
-                                add_group_dialog.close()
-
-                            with ui.row():
-                                ui.button(get_text('create'), on_click=handle_add_group, color='primary')
-                                ui.button(get_text('cancel'), on_click=add_group_dialog.close)
-
-                        with ui.row().classes('w-full items-center mb-4'):
-                            ui.button(get_text('create_group'), on_click=add_group_dialog.open, color='primary')
-                            ui.space()
-                            ui.button(get_text('refresh_groups'), on_click=refresh_groups_view, icon='refresh', color='primary')
-
                         if not group_data:
-                            ui.label(get_text('no_groups_created'))
+                            with groups_container:
+                                ui.label(get_text('no_groups_created'))
                             return
 
-                        for group in group_data:
-                            with ui.expansion(group['name'], icon='group').classes('w-full mb-2'):
-                                with ui.row().classes('w-full items-center'):
-                                    ui.label(f"{get_text('group_id')}: {group['id']}").classes('text-caption')
-                                    ui.space()
-                                    async def open_delete_group_dialog(group_id, group_name):
-                                        with ui.dialog() as delete_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
-                                            ui.label(get_text('delete_group_confirm').format(name=group_name))
-                                            with ui.row():
-                                                def handle_delete():
-                                                    crud.delete_group(db, group_id)
-                                                    ui.notify(get_text('group_deleted').format(name=group_name), color='negative')
-                                                    refresh_groups_view()
-                                                    delete_dialog.close()
-                                                ui.button(get_text('delete'), on_click=handle_delete, color='negative')
-                                                ui.button(get_text('cancel'), on_click=delete_dialog.close)
-                                        await delete_dialog
-                                    
-                                    ui.button(icon='delete', on_click=lambda g=group: open_delete_group_dialog(g['id'], g['name']), color='negative').props('flat dense')
+                        def get_priority_style(p_value):
+                            if not isinstance(p_value, (int, float)): p_value = 1
+                            p_value = max(1, min(10, p_value))
+                            indicator_width = (11 - p_value) * 10
+                            return f'width: {indicator_width}%;'
 
-                                with ui.grid().classes('w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2'):
-                                    for provider in providers:
-                                        with ui.card().classes('p-2'):
-                                            is_member = provider.id in group['providers']
-                                            
-                                            # Store the initial state and the switch components
-                                            if 'controls' not in group:
-                                                group['controls'] = {}
-                                            
-                                            switch = ui.switch(provider.name, value=is_member).classes('w-full')
-                                            ui.label(f"{get_text('model')}: {provider.model}").classes('text-xs ml-1')
-                                            
-                                            priority = group['providers'].get(provider.id, {}).get('priority', 1)
-                                            
-                                            with ui.element('div').classes('w-full'):
-                                                number_input = ui.number(get_text('priority'), value=priority, min=1, max=10, format='%.0f') \
-                                                    .props('outlined dense style="width: 100%;"') \
-                                                    .classes('bg-white')
-                                                
-                                                # Indicator bar
-                                                with ui.element('div').classes('w-full h-1.5 bg-gray-200 rounded-full mt-1'):
-                                                    indicator_bar = ui.element('div').classes('h-1.5 rounded-full transition-all duration-300').style('background-color: #2F6BFF')
+                        async def handle_save_group(group_data):
+                            initial_providers = group_data.get('providers', {})
+                            current_controls = group_data.get('controls', {})
+                            changes_made = False
+                            for pid, ctrls in current_controls.items():
+                                if ctrls['switch'].value:
+                                    new_priority = int(ctrls['priority'].value)
+                                    if pid not in initial_providers or initial_providers[pid].get('priority') != new_priority:
+                                        crud.add_provider_to_group(db, provider_id=pid, group_id=group_data['id'], priority=new_priority)
+                                        changes_made = True
+                                else:
+                                    if pid in initial_providers:
+                                        crud.remove_provider_from_group(db, provider_id=pid, group_id=group_data['id'])
+                                        changes_made = True
+                            if changes_made:
+                                ui.notify(get_text('group_updated').format(name=group_data['name']), color='positive')
+                                await refresh_groups_view()
+                            else:
+                                ui.notify(get_text('no_changes_to_save'))
+                        
+                        async def open_delete_group_dialog(group_id, group_name):
+                            with ui.dialog() as delete_dialog, ui.card():
+                                ui.label(get_text('delete_group_confirm').format(name=group_name))
+                                with ui.row():
+                                    async def handle_delete():
+                                        crud.delete_group(db, group_id)
+                                        ui.notify(get_text('group_deleted').format(name=group_name), color='negative')
+                                        delete_dialog.close()
+                                        await refresh_groups_view()
+                                    ui.button(get_text('delete'), on_click=handle_delete, color='negative')
+                                    ui.button(get_text('cancel'), on_click=delete_dialog.close)
+                            await delete_dialog
 
-                                            # Apply initial styles
-                                            indicator_bar.style(get_priority_style(priority))
+                        with groups_container:
+                            for group in group_data:
+                                with ui.expansion(group['name'], icon='group').classes('w-full mb-2'):
+                                    with ui.row().classes('w-full items-center'):
+                                        ui.label(f"{get_text('group_id')}: {group['id']}").classes('text-caption')
+                                        ui.space()
+                                        ui.button(icon='delete', on_click=lambda g=group: open_delete_group_dialog(g['id'], g['name']), color='negative').props('flat dense')
 
-                                            # Update styles on change
-                                            def update_style(e, bar=indicator_bar):
-                                                bar.style(get_priority_style(e.args))
+                                    with ui.grid().classes('w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2'):
+                                        group['controls'] = {}
+                                        for provider in providers:
+                                            with ui.card().classes('p-2'):
+                                                is_member = provider.id in group['providers']
+                                                switch = ui.switch(provider.name, value=is_member).classes('w-full')
+                                                ui.label(f"{get_text('model')}: {provider.model}").classes('text-xs ml-1')
+                                                priority = group['providers'].get(provider.id, {}).get('priority', 1)
+                                                with ui.element('div').classes('w-full'):
+                                                    number_input = ui.number(get_text('priority'), value=priority, min=1, max=10, format='%.0f').props('outlined dense style="width: 100%;"').classes('bg-white')
+                                                    with ui.element('div').classes('w-full h-1.5 bg-gray-200 rounded-full mt-1'):
+                                                        indicator_bar = ui.element('div').classes('h-1.5 rounded-full transition-all duration-300').style('background-color: #2F6BFF')
+                                                indicator_bar.style(get_priority_style(priority))
+                                                number_input.on('update:model-value', lambda e, bar=indicator_bar: bar.style(get_priority_style(e.args)))
+                                                group['controls'][provider.id] = {'switch': switch, 'priority': number_input}
 
-                                            number_input.on('update:model-value', update_style)
-                                            group['controls'][provider.id] = {'switch': switch, 'priority': number_input}
+                                    with ui.row().classes('w-full mt-2 justify-end'):
+                                        ui.button(get_text('save_changes'), on_click=lambda g=group: handle_save_group(g)).props('color="primary"')
 
-                                def handle_save_group(group_data):
-                                    initial_providers = group_data.get('providers', {})
-                                    current_controls = group_data.get('controls', {})
-                                    
-                                    changes_made = False
-                                    
-                                    # Check for providers to add/update
-                                    for pid, ctrls in current_controls.items():
-                                        if ctrls['switch'].value:
-                                            new_priority = int(ctrls['priority'].value)
-                                            # If provider is new or priority has changed
-                                            if pid not in initial_providers or initial_providers[pid].get('priority') != new_priority:
-                                                crud.add_provider_to_group(db, provider_id=pid, group_id=group_data['id'], priority=new_priority)
-                                                changes_made = True
-                                        else:
-                                            # If provider was in the group but is now switched off
-                                            if pid in initial_providers:
-                                                crud.remove_provider_from_group(db, provider_id=pid, group_id=group_data['id'])
-                                                changes_made = True
+                    async def refresh_groups_view():
+                        async with loading_animation():
+                            build_groups_view()
+                        ui.notify(get_text('groups_view_refreshed'), color='positive')
 
-                                    if changes_made:
-                                        ui.notify(get_text('group_updated').format(name=group_data['name']), color='positive')
-                                        refresh_groups_view()
-                                    else:
-                                        ui.notify(get_text('no_changes_to_save'))
-
-                                with ui.row().classes('w-full mt-2 justify-end'):
-                                    ui.button(get_text('save_changes'), on_click=lambda g=group: handle_save_group(g)).props('color="primary"')
+                    # --- Static UI Elements ---
+                    panel.on('show', refresh_groups_view)
+                    with ui.row().classes('w-full items-center'):
+                        ui.label(get_text('provider_groups')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_groups'), on_click=refresh_groups_view, icon='refresh', color='primary').props('flat')
                     
-                    groups_container = ui.column().classes('w-full')
-                    with groups_container:
-                        build_groups_view()
+                    ui.label(get_text('groups_description')).classes('mb-4')
+
+                    with ui.dialog() as add_group_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
+                        ui.label(get_text('create_new_group')).classes('text-h6')
+                        group_name_input = ui.input(get_text('group_name')).props('filled').classes('w-full')
+                        async def handle_add_group():
+                            if not group_name_input.value:
+                                ui.notify(get_text('group_name_empty_error'), color='negative')
+                                return
+                            if crud.get_group_by_name(db, group_name_input.value):
+                                ui.notify(get_text('group_exists_error').format(name=group_name_input.value), color='negative')
+                                return
+                            crud.create_group(db, schemas.GroupCreate(name=group_name_input.value))
+                            ui.notify(get_text('group_created').format(name=group_name_input.value), color='positive')
+                            add_group_dialog.close()
+                            await refresh_groups_view()
+                        with ui.row():
+                            ui.button(get_text('create'), on_click=handle_add_group, color='primary')
+                            ui.button(get_text('cancel'), on_click=add_group_dialog.close)
+                    
+                    ui.button(get_text('create_group'), on_click=add_group_dialog.open, color='primary')
+
+                    # --- Dynamic Content Area ---
+                    groups_container = ui.column().classes('w-full mt-4')
+                    build_groups_view()
 
 
                 with ui.tab_panel(logs_tab):
-                    ui.label(get_text('call_logs')).classes('text-h6')
+                    def get_logs_with_provider_info():
+                        logs = crud.get_call_logs(db)
+                        log_data = []
+                        for log in logs:
+                            data = {key: getattr(log, key) for key in log.__table__.columns.keys()}
+                            data['api_endpoint'] = log.provider.api_endpoint
+                            data['model'] = log.provider.model
+                            if data.get('request_timestamp'):
+                                data['request_timestamp'] = data['request_timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+                            log_data.append(data)
+                        return log_data
+
+                    async def refresh_logs_table():
+                        async with loading_animation():
+                            logs_table.update_rows(get_logs_with_provider_info())
+                        ui.notify(get_text('logs_refreshed'), color='positive')
+
+                    with ui.row().classes('w-full items-center'):
+                        ui.label(get_text('call_logs')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_logs'), on_click=refresh_logs_table, icon='refresh', color='primary').props('flat')
                     log_columns = [
                         {'name': 'id', 'label': get_text('id'), 'field': 'id', 'sortable': True},
                         {'name': 'api_endpoint', 'label': get_text('api_endpoint'), 'field': 'api_endpoint', 'sortable': True},
@@ -755,19 +780,7 @@ def create_ui():
                         {'name': 'actions', 'label': get_text('actions'), 'field': 'actions'},
                     ]
 
-                    def get_logs_with_provider_info():
-                        logs = crud.get_call_logs(db)
-                        log_data = []
-                        for log in logs:
-                            data = {key: getattr(log, key) for key in log.__table__.columns.keys()}
-                            data['api_endpoint'] = log.provider.api_endpoint
-                            data['model'] = log.provider.model
-                            if data.get('request_timestamp'):
-                                data['request_timestamp'] = data['request_timestamp'].strftime('%Y-%m-%d %H:%M:%S')
-                            log_data.append(data)
-                        return log_data
 
-                    ui.button(get_text('refresh_logs'), on_click=lambda: logs_table.update_rows(get_logs_with_provider_info()), color='primary')
                     import json
 
                     # Dialog to display the response body
@@ -832,12 +845,20 @@ def create_ui():
                     ''')
 
                 with ui.tab_panel(errors_tab):
-                    ui.label(get_text('failure_keywords')).classes('text-h6')
-                    ui.label(get_text('failure_keywords_description'))
+                    async def refresh_keywords_table_async():
+                        async with loading_animation():
+                            keywords_table.update_rows([{key: getattr(kw, key) for key in kw.__table__.columns.keys()} for kw in crud.get_error_keywords(db)])
+                        ui.notify(get_text('keywords_refreshed'), color='positive')
 
                     def refresh_keywords_table():
-                        keywords_table.rows = [{key: getattr(kw, key) for key in kw.__table__.columns.keys()} for kw in crud.get_error_keywords(db)]
-                        keywords_table.update()
+                        keywords_table.update_rows([{key: getattr(kw, key) for key in kw.__table__.columns.keys()} for kw in crud.get_error_keywords(db)])
+
+                    with ui.row().classes('w-full items-center'):
+                        ui.label(get_text('failure_keywords')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_keywords'), on_click=refresh_keywords_table_async, icon='refresh', color='primary').props('flat')
+                    
+                    ui.label(get_text('failure_keywords_description')).classes('mb-4')
 
                     with ui.dialog() as add_keyword_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
                         ui.label(get_text('add_failure_keyword')).classes('text-h6')
@@ -890,181 +911,187 @@ def create_ui():
 
                     keywords_table.on('delete_keyword', open_delete_keyword_dialog)
                 with ui.tab_panel(api_keys_tab):
-                    def build_api_keys_view():
-                        def get_all_api_keys():
-                            db.expire_all()
-                            keys = crud.get_api_keys(db)
-                            return [
-                                {
-                                    "id": key.id,
-                                    "key_display": f"{key.key[:5]}...{key.key[-4:]}",
-                                    "key": key.key,
-                                    "is_active": key.is_active,
-                                    "created_at": key.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                    "last_used_at": key.last_used_at.strftime("%Y-%m-%d %H:%M:%S") if key.last_used_at else get_text('never'),
-                                    "groups": ", ".join([g.name for g in key.groups]),
-                                    "group_ids": [g.id for g in key.groups]
-                                } for key in keys
-                            ]
+                    def get_all_api_keys():
+                        db.expire_all()
+                        keys = crud.get_api_keys(db)
+                        return [
+                            {
+                                "id": key.id,
+                                "key_display": f"{key.key[:5]}...{key.key[-4:]}",
+                                "key": key.key,
+                                "is_active": key.is_active,
+                                "created_at": key.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                "last_used_at": key.last_used_at.strftime("%Y-%m-%d %H:%M:%S") if key.last_used_at else get_text('never'),
+                                "groups": ", ".join([g.name for g in key.groups]),
+                                "group_ids": [g.id for g in key.groups]
+                            } for key in keys
+                        ]
 
-                        def refresh_keys_table():
-                            keys_table.rows = get_all_api_keys()
-                            keys_table.update()
+                    columns = [
+                        {'name': 'key_display', 'label': get_text('key'), 'field': 'key_display', 'align': 'left'},
+                        {'name': 'is_active', 'label': get_text('active'), 'field': 'is_active', 'sortable': True},
+                        {'name': 'groups', 'label': get_text('groups'), 'field': 'groups', 'align': 'left'},
+                        {'name': 'created_at', 'label': get_text('created_at'), 'field': 'created_at', 'sortable': True},
+                        {'name': 'last_used_at', 'label': get_text('last_used'), 'field': 'last_used_at', 'sortable': True},
+                        {'name': 'actions', 'label': get_text('actions'), 'field': 'actions'},
+                    ]
+                    def refresh_keys_table():
+                        keys_table.update_rows(get_all_api_keys())
 
-                        # This dialog is for showing the newly generated key
-                        with ui.dialog() as show_key_dialog, ui.card().style('min-width: 400px;'):
-                            ui.label(get_text('api_key_generated_successfully')).classes('text-h6')
-                            ui.label(get_text('copy_key_instruction')).classes('text-sm text-gray-500')
-                            
-                            def copy_key():
-                                ui.run_javascript(f"navigator.clipboard.writeText('{key_display_label.value}')")
-                                ui.notify(get_text('copied_to_clipboard'), color='positive')
+                    async def refresh_keys_table_async():
+                        async with loading_animation():
+                            refresh_keys_table()
+                        ui.notify(get_text('api_keys_refreshed'), color='positive')
 
-                            with ui.row().classes('w-full no-wrap items-center'):
-                                key_display_label = ui.input(label=get_text('your_new_api_key')).props('readonly filled').classes('flex-grow')
-                                ui.button(icon='content_copy', on_click=copy_key).props('flat dense')
+                    with ui.row().classes('w-full items-center mb-4'):
+                        ui.label(get_text('api_keys')).classes('text-h6')
+                        ui.space()
+                        ui.button(get_text('refresh_api_keys'), on_click=refresh_keys_table_async, icon='refresh', color='primary').props('flat')
 
-                            with ui.row().classes('w-full justify-end mt-4'):
-                                ui.button(get_text('close'), on_click=show_key_dialog.close, color='primary')
+                    # This dialog is for showing the newly generated key
+                    with ui.dialog() as show_key_dialog, ui.card().style('min-width: 400px;'):
+                        ui.label(get_text('api_key_generated_successfully')).classes('text-h6')
+                        ui.label(get_text('copy_key_instruction')).classes('text-sm text-gray-500')
+                        
+                        def copy_key():
+                            ui.run_javascript(f"navigator.clipboard.writeText('{key_display_label.value}')")
+                            ui.notify(get_text('copied_to_clipboard'), color='positive')
 
-                        # This dialog is for creating a new key
-                        with ui.dialog() as add_key_dialog, ui.card().style('width: 60vw; max-width: 800px;').classes('pb-12'):
-                            ui.label(get_text('create_new_api_key')).classes('text-h6')
-                            with ui.column().classes('w-full'):
-                                def refresh_group_options():
+                        with ui.row().classes('w-full no-wrap items-center'):
+                            key_display_label = ui.input(label=get_text('your_new_api_key')).props('readonly filled').classes('flex-grow')
+                            ui.button(icon='content_copy', on_click=copy_key).props('flat dense')
+
+                        with ui.row().classes('w-full justify-end mt-4'):
+                            ui.button(get_text('close'), on_click=show_key_dialog.close, color='primary')
+
+                    # This dialog is for creating a new key
+                    with ui.dialog() as add_key_dialog, ui.card().style('width: 60vw; max-width: 800px;').classes('pb-12'):
+                        ui.label(get_text('create_new_api_key')).classes('text-h6')
+                        with ui.column().classes('w-full'):
+                            async def refresh_group_options():
+                                async with loading_animation():
                                     db.expire_all() # Ensure fresh data from DB
                                     all_group_names = [g.name for g in crud.get_groups(db)]
                                     group_select.options = all_group_names
                                     group_select.update()
-                                    ui.notify('Group list refreshed', color='info')
+                                ui.notify(get_text('group_list_refreshed'), color='info')
 
-                                with ui.row().classes('w-full no-wrap items-center'):
-                                    all_group_names = [g.name for g in crud.get_groups(db)]
-                                    group_select = ui.select(all_group_names, multiple=True, label=get_text('assign_to_groups')).props('filled').classes('flex-grow')
-                                    ui.button(icon='refresh', on_click=refresh_group_options).props('flat dense color=primary')
+                            with ui.row().classes('w-full no-wrap items-center'):
+                                all_group_names = [g.name for g in crud.get_groups(db)]
+                                group_select = ui.select(all_group_names, multiple=True, label=get_text('assign_to_groups')).props('filled').classes('flex-grow')
+                                ui.button(icon='refresh', on_click=refresh_group_options).props('flat dense color=primary')
 
-                            def handle_add_key():
-                                if not group_select.value:
-                                    ui.notify(get_text('assign_to_at_least_one_group_error'), color='negative')
-                                    return
-                                
-                                # The value from the select is the group name, so we need to get the IDs.
-                                group_ids = [g.id for g in crud.get_groups(db) if g.name in group_select.value]
-                                key_data = schemas.APIKeyCreate(group_ids=group_ids)
-                                new_key = crud.create_api_key(db, key_data)
-                                
-                                # Update the (now independent) dialog and show it
-                                key_display_label.value = new_key.key
-                                show_key_dialog.open()
+                        def handle_add_key():
+                            if not group_select.value:
+                                ui.notify(get_text('assign_to_at_least_one_group_error'), color='negative')
+                                return
+                            
+                            group_ids = [g.id for g in crud.get_groups(db) if g.name in group_select.value]
+                            key_data = schemas.APIKeyCreate(group_ids=group_ids)
+                            new_key = crud.create_api_key(db, key_data)
+                            
+                            key_display_label.value = new_key.key
+                            show_key_dialog.open()
 
-                                ui.notify(get_text('api_key_created'), color='positive')
-                                refresh_keys_table()
-                                add_key_dialog.close()
+                            ui.notify(get_text('api_key_created'), color='positive')
+                            refresh_keys_table()
+                            add_key_dialog.close()
 
-                            with ui.row():
-                                ui.button(get_text('create'), on_click=handle_add_key, color='primary')
-                                ui.button(get_text('cancel'), on_click=add_key_dialog.close)
-                        
-                        columns = [
-                            {'name': 'key_display', 'label': get_text('key'), 'field': 'key_display', 'align': 'left'},
-                            {'name': 'is_active', 'label': get_text('active'), 'field': 'is_active', 'sortable': True},
-                            {'name': 'groups', 'label': get_text('groups'), 'field': 'groups', 'align': 'left'},
-                            {'name': 'created_at', 'label': get_text('created_at'), 'field': 'created_at', 'sortable': True},
-                            {'name': 'last_used_at', 'label': get_text('last_used'), 'field': 'last_used_at', 'sortable': True},
-                            {'name': 'actions', 'label': get_text('actions'), 'field': 'actions'},
-                        ]
+                        with ui.row():
+                            ui.button(get_text('create'), on_click=handle_add_key, color='primary')
+                            ui.button(get_text('cancel'), on_click=add_key_dialog.close)
+                    
+                    ui.button(get_text('create_api_key'), on_click=add_key_dialog.open, color='primary').classes('mb-4')
+                    
+                    keys_table = ui.table(columns=columns, rows=[], row_key='id').classes('w-full')
+                    keys_table.add_slot('body-cell-key_display', '''
+                        <q-td :props="props">
+                            <div class="row items-center no-wrap">
+                                <span>{{ props.row.key_display }}</span>
+                                <q-btn @click="$parent.$emit('copy-key', props.row.key)" icon="content_copy" flat dense color="primary" class="cursor-pointer" />
+                            </div>
+                        </q-td>
+                    ''')
+                    keys_table.add_slot('body-cell-actions', '''
+                        <q-td :props="props">
+                            <q-btn @click="$parent.$emit('edit_key', props.row)" icon="edit" flat dense color="primary" />
+                            <q-btn @click="$parent.$emit('toggle_key', props.row)" :icon="props.row.is_active ? 'toggle_on' : 'toggle_off'" flat dense :color="props.row.is_active ? 'positive' : 'grey'" />
+                            <q-btn @click="$parent.$emit('delete_key', props.row)" icon="delete" flat dense color="negative" />
+                        </q-td>
+                    ''')
 
-                        ui.button(get_text('create_api_key'), on_click=add_key_dialog.open, color='primary').classes('mb-4')
-                        keys_table = ui.table(columns=columns, rows=get_all_api_keys(), row_key='id').classes('w-full')
-                        
-                        keys_table.add_slot('body-cell-key_display', '''
-                            <q-td :props="props">
-                                <div class="row items-center no-wrap">
-                                    <span>{{ props.row.key_display }}</span>
-                                    <q-btn @click="$parent.$emit('copy-key', props.row.key)" icon="content_copy" flat dense color="primary" class="cursor-pointer" />
-                                </div>
-                            </q-td>
-                        ''')
-                        keys_table.add_slot('body-cell-actions', '''
-                            <q-td :props="props">
-                                <q-btn @click="$parent.$emit('edit_key', props.row)" icon="edit" flat dense color="primary" />
-                                <q-btn @click="$parent.$emit('toggle_key', props.row)" :icon="props.row.is_active ? 'toggle_on' : 'toggle_off'" flat dense :color="props.row.is_active ? 'positive' : 'grey'" />
-                                <q-btn @click="$parent.$emit('delete_key', props.row)" icon="delete" flat dense color="negative" />
-                            </q-td>
-                        ''')
-
-                        with ui.dialog() as edit_key_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
-                            ui.label(get_text('edit_api_key')).classes('text-h6')
-                            edit_key_id = ui.label()
-                            with ui.column().classes('w-full'):
-                                def refresh_edit_group_options():
-                                    db.expire_all() # Ensure fresh data from DB
+                    with ui.dialog() as edit_key_dialog, ui.card().style('width: 60vw; max-width: 800px;'):
+                        ui.label(get_text('edit_api_key')).classes('text-h6')
+                        edit_key_id = ui.label()
+                        with ui.column().classes('w-full'):
+                            async def refresh_edit_group_options():
+                                async with loading_animation():
+                                    db.expire_all()
                                     all_group_names = [g.name for g in crud.get_groups(db)]
                                     edit_group_select.options = all_group_names
                                     edit_group_select.update()
-                                    ui.notify('Group list refreshed', color='info')
+                                ui.notify(get_text('group_list_refreshed'), color='info')
 
-                                with ui.row().classes('w-full no-wrap items-center'):
-                                    all_groups_edit = [g.name for g in crud.get_groups(db)]
-                                    edit_group_select = ui.select(all_groups_edit, multiple=True, label=get_text('assigned_groups')).props('filled').classes('flex-grow')
-                                    ui.button(icon='refresh', on_click=refresh_edit_group_options).props('flat dense color=primary')
+                            with ui.row().classes('w-full no-wrap items-center'):
+                                all_groups_edit = [g.name for g in crud.get_groups(db)]
+                                edit_group_select = ui.select(all_groups_edit, multiple=True, label=get_text('assigned_groups')).props('filled').classes('flex-grow')
+                                ui.button(icon='refresh', on_click=refresh_edit_group_options).props('flat dense color=primary')
 
-                            def handle_edit_key():
-                                # The value from the select is the group name, so we need to get the IDs.
-                                group_ids = [g.id for g in crud.get_groups(db) if g.name in edit_group_select.value]
-                                update_data = schemas.APIKeyUpdate(group_ids=group_ids)
-                                crud.update_api_key(db, int(edit_key_id.text), update_data)
-                                ui.notify(get_text('api_key_updated'), color='positive')
-                                refresh_keys_table()
-                                edit_key_dialog.close()
-
-                            with ui.row():
-                                ui.button(get_text('save'), on_click=handle_edit_key, color='primary')
-                                ui.button(get_text('cancel'), on_click=edit_key_dialog.close)
-
-                        def open_edit_key_dialog(e):
-                            row = e.args
-                            edit_key_id.text = str(row['id'])
-                            # Set the value of the select to the group names, not the IDs.
-                            group_names = [g.name for g in crud.get_groups(db) if g.id in row['group_ids']]
-                            edit_group_select.value = group_names
-                            edit_key_dialog.open()
-
-                        def handle_toggle_key(e):
-                            row = e.args
-                            update_data = schemas.APIKeyUpdate(is_active=not row['is_active'])
-                            crud.update_api_key(db, row['id'], update_data)
-                            ui.notify(get_text('api_key_status_changed'), color='positive')
+                        def handle_edit_key():
+                            group_ids = [g.id for g in crud.get_groups(db) if g.name in edit_group_select.value]
+                            update_data = schemas.APIKeyUpdate(group_ids=group_ids)
+                            crud.update_api_key(db, int(edit_key_id.text), update_data)
+                            ui.notify(get_text('api_key_updated'), color='positive')
                             refresh_keys_table()
+                            edit_key_dialog.close()
 
-                        async def open_delete_key_dialog(e):
-                            row = e.args
-                            with ui.dialog() as delete_dialog, ui.card():
-                                ui.label(get_text('delete_api_key_confirm').format(key_display=row['key_display']))
-                                with ui.row():
-                                    def perform_delete():
-                                        crud.delete_api_key(db, row['id'])
-                                        ui.notify(get_text('api_key_deleted'), color='negative')
-                                        refresh_keys_table()
-                                        delete_dialog.close()
-                                    ui.button(get_text('delete'), on_click=perform_delete, color='negative')
-                                    ui.button(get_text('cancel'), on_click=delete_dialog.close)
-                            await delete_dialog
+                        with ui.row():
+                            ui.button(get_text('save'), on_click=handle_edit_key, color='primary')
+                            ui.button(get_text('cancel'), on_click=edit_key_dialog.close)
 
-                        def handle_copy_key(e):
-                            key_to_copy = e.args
-                            ui.run_javascript(f"navigator.clipboard.writeText('{key_to_copy}')")
-                            ui.notify(get_text('copied_to_clipboard'), color='positive')
+                    def open_edit_key_dialog(e):
+                        row = e.args
+                        edit_key_id.text = str(row['id'])
+                        group_names = [g.name for g in crud.get_groups(db) if g.id in row['group_ids']]
+                        edit_group_select.value = group_names
+                        edit_key_dialog.open()
 
-                        keys_table.on('copy-key', handle_copy_key)
-                        keys_table.on('edit_key', open_edit_key_dialog)
-                        keys_table.on('toggle_key', handle_toggle_key)
-                        keys_table.on('delete_key', open_delete_key_dialog)
+                    def handle_toggle_key(e):
+                        row = e.args
+                        update_data = schemas.APIKeyUpdate(is_active=not row['is_active'])
+                        crud.update_api_key(db, row['id'], update_data)
+                        ui.notify(get_text('api_key_status_changed'), color='positive')
+                        refresh_keys_table()
 
-                    build_api_keys_view()
+                    async def open_delete_key_dialog(e):
+                        row = e.args
+                        with ui.dialog() as delete_dialog, ui.card():
+                            ui.label(get_text('delete_api_key_confirm').format(key_display=row['key_display']))
+                            with ui.row():
+                                def perform_delete():
+                                    crud.delete_api_key(db, row['id'])
+                                    ui.notify(get_text('api_key_deleted'), color='negative')
+                                    refresh_keys_table()
+                                    delete_dialog.close()
+                                ui.button(get_text('delete'), on_click=perform_delete, color='negative')
+                                ui.button(get_text('cancel'), on_click=delete_dialog.close)
+                        await delete_dialog
+
+                    def handle_copy_key(e):
+                        key_to_copy = e.args
+                        ui.run_javascript(f"navigator.clipboard.writeText('{key_to_copy}')")
+                        ui.notify(get_text('copied_to_clipboard'), color='positive')
+
+                    keys_table.on('copy-key', handle_copy_key)
+                    keys_table.on('edit_key', open_edit_key_dialog)
+                    keys_table.on('toggle_key', handle_toggle_key)
+                    keys_table.on('delete_key', open_delete_key_dialog)
+
+                    refresh_keys_table()
 
                 with ui.tab_panel(settings_tab):
-                    ui.label(get_text('settings')).classes('text-h6')
+                    with ui.row().classes('w-full items-center'):
+                        ui.label(get_text('settings')).classes('text-h6')
                     
                     with ui.card().classes('w-full mt-4'):
                         ui.label(get_text('failover_settings')).classes('text-lg font-medium')
@@ -1125,7 +1152,7 @@ def create_ui():
             # Add custom fonts and styling to the page head
             ui.add_head_html('''
                 <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;700&display=swap');
+                    @import url('/css/css2?family=Noto+Sans:wght@300;400;500;700&display=swap');
                     body { font-family: 'Noto Sans', sans-serif; }
                     .nicegui-content { padding: 0 !important; }
                     .login-bg {
@@ -1180,11 +1207,11 @@ def create_ui():
                 
                 # Right Panel (Image) - 60% width, hidden on small screens
                 with ui.element('div').classes('w-full lg:w-[60%] h-full lg:flex'):
-                    ui.image('https://images.unsplash.com/photo-1551288049-bebda4e38f71').classes('w-full h-full object-cover')
+                    ui.image('/images/bg.png').classes('w-full h-full object-cover')
             
             # JavaScript for the animated background
             ui.add_body_html(f'''
-                <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+                <script src="/js/three.min.js"></script>
                 <script>
                     document.addEventListener('DOMContentLoaded', () => {{
                         const container = document.querySelector('.login-bg');
