@@ -72,7 +72,7 @@
 1.  **リポジトリをクローンする：**
     ```bash
     git clone https://github.com/felixszeto/NiceAPI.git
-    cd api_server
+    cd NiceAPI
     ```
 
 2.  **仮想環境を作成してアクティブ化する（推奨）：**

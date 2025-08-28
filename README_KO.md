@@ -72,7 +72,7 @@
 1.  **저장소 복제:**
     ```bash
     git clone https://github.com/felixszeto/NiceAPI.git
-    cd api_server
+    cd NiceAPI
     ```
 
 2.  **가상 환경 생성 및 활성화 (권장):**

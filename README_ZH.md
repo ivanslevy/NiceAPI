@@ -72,7 +72,7 @@
 1.  **克隆儲存庫：**
     ```bash
     git clone https://github.com/felixszeto/NiceAPI.git
-    cd api_server
+    cd NiceAPI
     ```
 
 2.  **建立並啟用虛擬環境（建議）：**
