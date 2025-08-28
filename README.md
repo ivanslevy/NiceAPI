@@ -1,4 +1,4 @@
-[English](README.md) | [中文](README_ZH.md) | [한국어](README_KO.md) | [日本語](README_JA.md)
+[English](README.md) | [简体中文](README_zh-CN.md) | [繁體中文](README_zh-TW.md) | [한국어](README_KO.md) | [日本語](README_JA.md)
 
 ---
 # AI Provider API Server

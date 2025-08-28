@@ -96,7 +96,8 @@ def create_ui():
                         with ui.button(icon='language').props('flat text-color="white"'):
                             with ui.menu():
                                 ui.menu_item('English', on_click=lambda: set_language('en'))
-                                ui.menu_item('中文', on_click=lambda: set_language('zh'))
+                                ui.menu_item('中文(简体)', on_click=lambda: set_language('zh-CN'))
+                                ui.menu_item('中文(繁體)', on_click=lambda: set_language('zh-TW'))
                                 ui.menu_item('한국어', on_click=lambda: set_language('ko'))
                                 ui.menu_item('日本語', on_click=lambda: set_language('ja'))
                         ui.button(get_text('logout'), on_click=logout).props('flat text-color="white"')

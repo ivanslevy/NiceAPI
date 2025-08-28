@@ -1,4 +1,4 @@
-[English](README.md) | [中文](README_ZH.md) | [한국어](README_KO.md) | [日本語](README_JA.md)
+[English](README.md) | [简体中文](README_zh_tw-CN.md) | [繁體中文](README_zh_tw-TW.md) | [한국어](README_KO.md) | [日本語](README_JA.md)
 
 ---
 # AI Provider API 伺服器
@@ -45,17 +45,17 @@
 
 | 設定 | 供應商 | 群組 |
 | :---: | :---: | :---: |
-| ![設定](example/settings_zh.png) | ![供應商](example/providers_zh.png) | ![群組](example/groups_zh.png) |
+| ![設定](example/settings_zh_tw.png) | ![供應商](example/providers_zh_tw.png) | ![群組](example/groups_zh_tw.png) |
 | 設定全域設定，例如 UI 語言和故障轉移重試邏輯。 | 管理您所有的 AI 供應商端點，包括憑證、成本和強大的模型匯入工具。 | 將多個供應商組合在一起，建立一個具有基於優先級的故障轉移功能的虛擬端點。 |
 
 | 呼叫日誌 | API 金鑰 | 失敗關鍵字 |
 | :---: | :---: | :---: |
-| ![呼叫日誌](example/call_logs_zh.png) | ![API 金鑰](example/api_keys_zh.png) | ![失敗關鍵字](example/fail_keywords_zh.png) |
+| ![呼叫日誌](example/call_logs_zh_tw.png) | ![API 金鑰](example/api_keys_zh_tw.png) | ![失敗關鍵字](example/fail_keywords_zh_tw.png) |
 | 檢查每個 API 呼叫的詳細日誌。點擊日誌即可查閱完整的回應內容，以及費用詳情。 | 產生 API 金鑰並將其分配給特定群組，以進行精細的存取控制。 | 定義在供應商回應中發現時觸發自動故障轉移的關鍵字。 |
 
 | 儀表板 |
 | :---: |
-| ![儀表板](example/dashboard_zh.png) |
+| ![儀表板](example/dashboard_zh_tw.png) |
 | 即時監控 API 使用情況、成功率和效能指標，一目了然。 |
 
 ##  快速入門
