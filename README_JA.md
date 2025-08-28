@@ -167,3 +167,7 @@ curl http://localhost:8001/v1/chat/completions \
 ```
 
 応答は、選択されたプロバイダーからの標準的なOpenAI互換のJSONオブジェクトになります。
+
+## 📜 ライセンス
+
+このプロジェクトはMITライセンスの下でライセンスされています - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。

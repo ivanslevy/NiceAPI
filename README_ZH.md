@@ -167,3 +167,7 @@ curl http://localhost:8001/v1/chat/completions \
 ```
 
 回應將是來自所選供應商的標準 OpenAI 相容 JSON 物件。
+
+## 📜 授權
+
+本專案採用 MIT 授權 - 詳情請參閱 [LICENSE](LICENSE) 檔案。

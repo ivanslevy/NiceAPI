@@ -167,3 +167,7 @@ curl http://localhost:8001/v1/chat/completions \
 ```
 
 The response will be a standard OpenAI-compatible JSON object from the selected provider.
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
